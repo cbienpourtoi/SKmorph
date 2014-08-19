@@ -2,39 +2,45 @@
 # program to write out the sample in a form suitable for downloading the sdss
 # jpegs 
 #
-import asciidata
+#import asciidata
+from astropy.io import ascii
 import numpy as np
-from astLib import astCoords
+#from astLib import astCoords
 import funcfindingchart
 #
 # read in the data
 #
-highsSFRsample = asciidata.open('../NRTsamplewidezall')
-MJD = highsSFRsample[0]
-PLATEID = highsSFRsample[1]
-FIBERID = highsSFRsample[2]
-PHOTID = highsSFRsample[3]
-RAhrs= highsSFRsample[4]
-RAmin = highsSFRsample[5]
-RAsec = highsSFRsample[6]
-Decdeg = highsSFRsample[7]
-Decmin = highsSFRsample[8]
-Decsec = highsSFRsample[9]
+highsSFRsample = ascii.read('NRTsamplewidezall')
+MJD = highsSFRsample.field('MJD')
+PLATEID = highsSFRsample.field('plateid')
+FIBERID = highsSFRsample.field('fiberid')
+PHOTID = highsSFRsample.field('photoid')
+RAhrs= highsSFRsample.field('rahh')
+RAmin = highsSFRsample.field('ramm')
+RAsec = highsSFRsample.field('rasec')
+Decdeg = highsSFRsample.field('decdd')
+Decmin = highsSFRsample.field('decmm')
+Decsec = highsSFRsample.field('decss')
 #
 # read in the ra and decs in decimal degress
 #
-origcat = '../spectra/NRTwideselectionSDSSdata.dat'
-origdata = asciidata.open(origcat)
-SDSS = origdata[0]
-PLATEIDorig = origdata[1]
-MJDorig = origdata[2]
-FIBERIDorig = origdata[3]
-RAdeg =  origdata[4].tonumpy()
-Decdeg =  origdata[5].tonumpy()
-z = origdata[6].tonumpy()
-zwarning = origdata[7].tonumpy()
-StoN = origdata[8].tonumpy()
-objclass= origdata[9]
+origcat = 'NRTwideselectionSDSSdata.dat'
+origdata = ascii.read(origcat)
+SDSS = origdata.field('Survey')
+PLATEIDorig = origdata.field('plateID')
+MJDorig = origdata.field('MJD')
+FIBERIDorig = origdata.field('Fiber')
+RAdeg =  origdata.field('RA')
+Decdeg =  origdata.field('Dec')
+z = origdata.field('redshift')
+zwarning = origdata.field('zwarning')
+StoN = origdata.field('StoN')
+#RAdeg =  origdata.field('RA').tonumpy()
+#Decdeg =  origdata.field('Dec').tonumpy()
+#z = origdata.field('redshift').tonumpy()
+#zwarning = origdata.field('zwarning').tonumpy()
+#StoN = origdata.field('StoN').tonumpy()
+objclass= origdata.field('Class')
 #
 #
 #
