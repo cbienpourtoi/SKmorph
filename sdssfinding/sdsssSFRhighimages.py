@@ -53,7 +53,7 @@ objclass= origdata.field('Class')
 #
 #
 for ind in np.arange(len(MJD)):
-     name = str(MJD[ind])+str(PLATEID[ind])+str(FIBERID[ind])+'.jpg'
+     name = "images/" + str(MJD[ind])+str(PLATEID[ind])+str(FIBERID[ind]) + ".jpg"
 #     spRAsec = str(RAsec[ind]).split('.')
 #     spDecsec = str(Decsec[ind]).split('.')
 #     if (len(spRAsec[0]) < 2):
