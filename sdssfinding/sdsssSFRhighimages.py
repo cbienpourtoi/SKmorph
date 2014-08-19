@@ -1,3 +1,11 @@
+# 
+# august 2014
+# Initial file from Matt.
+# Now works with astropy (Loic's changes)
+#
+
+
+
 #
 # program to write out the sample in a form suitable for downloading the sdss
 # jpegs 
