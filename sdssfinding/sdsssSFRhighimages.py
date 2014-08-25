@@ -91,6 +91,19 @@ asymetries_void = np.zeros(n_galaxies_limit)
 table_results = Table([galaxyIDs, asymetries_object, asymetries_void, asymetries_corrected], names=("ID", "asymetry object", "asymetry void", "asymetry corrected"), meta={'name': 'Results'})
 
 
+# Make a table of the voids (just once, then I'll read the table directly)
+voidfile = "void_positions.dat"
+if not os.path.exists(voidfile):
+    galaxyIDs = np.array([])
+    void_xmin = np.array([])
+    void_xmax = np.array([])
+    void_ymin = np.array([])
+    void_ymax = np.array([])
+    table_voids = Table([galaxyIDs, void_xmin, void_xmax, void_ymin, void_ymax], names=("ID", "Xmin", "Xmax", "Ymin", "Ymax"), meta={'name': 'Table of void positions'})
+    table_voids.write(voidfile, format='ascii.commented_header')
+else:
+    table_voids = Table.read(voidfile, format='ascii.commented_header')
+    #print table_voids
 
 
 # Loops on galaxies
@@ -267,21 +280,34 @@ for ind in np.arange(n_galaxies_limit):
 
 
 
-        # Find a void region
+        # Find a void region if it has not been already computed:
+        voidfile_row = (np.where(table_voids['ID'] == int(subname)))[0]
+        print voidfile_row
+        if not len(voidfile_row):
+            # in this case it computes the void and saves its parameters.
 
-        n_regions_x = image.shape[0] - dist_pix * 2
-        n_regions_y = image.shape[1] - dist_pix * 2
+            n_regions_x = image.shape[0] - dist_pix * 2
+            n_regions_y = image.shape[1] - dist_pix * 2
 
-        regions_moment = np.zeros((n_regions_x, n_regions_y))
+            regions_moment = np.zeros((n_regions_x, n_regions_y))
 
-        for region_x in np.arange(n_regions_x):
-            for region_y in np.arange(n_regions_y):
-                region = image[region_x:region_x+dist_pix*2, region_y:region_y+dist_pix*2]
-                regions_moment[region_x, region_y] = ndimage.standard_deviation(region)
+            for region_x in np.arange(n_regions_x):
+                for region_y in np.arange(n_regions_y):
+                    region = image[region_x:region_x+dist_pix*2, region_y:region_y+dist_pix*2]
+                    regions_moment[region_x, region_y] = ndimage.standard_deviation(region)
 
-        voidpos = np.where(regions_moment == np.min(regions_moment))
+            voidpos = np.where(regions_moment == np.min(regions_moment))
 
-        void = image[voidpos[0]:voidpos[0]+dist_pix*2, voidpos[1]:voidpos[1]+dist_pix*2]
+            void = image[voidpos[0]:voidpos[0]+dist_pix*2, voidpos[1]:voidpos[1]+dist_pix*2]
+
+            table_voids.add_row([subname, voidpos[0], voidpos[0]+dist_pix*2, voidpos[1], voidpos[1]+dist_pix*2])
+            table_voids.write(voidfile, format='ascii.commented_header')
+
+        else:
+            # in this case it just gets the void from the file.
+            void = image[table_voids["Xmin"][voidfile_row]:table_voids["Xmax"][voidfile_row], table_voids["Ymin"][voidfile_row]:table_voids["Ymax"][voidfile_row]]
+
+
 
         rotvoid = np.rot90(np.rot90(void))
         diffrotvoid = void-rotvoid
