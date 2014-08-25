@@ -24,6 +24,8 @@ from telarchive import fetchsdss
 from astropy.coordinates import SkyCoord
 from astropy import units as u
 from astropy.io import fits
+from astropy.table import Table
+
 
 import aplpy
 import matplotlib.pyplot as plt
@@ -31,6 +33,8 @@ import matplotlib.pyplot as plt
 from matplotlib.backends.backend_pdf import PdfPages
 
 from PyPDF2 import PdfFileMerger, PdfFileReader
+
+from scipy import ndimage
 
 pdfmerger = PdfFileMerger()
 
@@ -73,11 +77,24 @@ objclass= origdata.field('Class')
 #
 #
 
+# Just do the first galaxies or all of them :
+#n_galaxies_limit = len(MJD)
+n_galaxies_limit = 30
+
+
+# Makes a table to store results in.
+galaxyIDs = np.zeros(n_galaxies_limit)
+asymetries_corrected = np.zeros(n_galaxies_limit)
+asymetries_object = np.zeros(n_galaxies_limit)
+asymetries_void = np.zeros(n_galaxies_limit)
+
+table_results = Table([galaxyIDs, asymetries_object, asymetries_void, asymetries_corrected], names=("ID", "asymetry object", "asymetry void", "asymetry corrected"), meta={'name': 'Results'})
 
 
 
-#for ind in np.arange(len(MJD)):
-for ind in np.arange(30):
+
+# Loops on galaxies
+for ind in np.arange(n_galaxies_limit):
     subname = str(MJD[ind])+str(PLATEID[ind])+str(FIBERID[ind])
     name = "images/" + subname + ".jpg"
 
@@ -125,14 +142,10 @@ for ind in np.arange(30):
         plt.close()
 
 
-        ########################
-        # Asymetry measurement #
-        ########################
-
-        #TODO: delete sky from subimage for asymetry.
-        #TODO: put blank sky closer to galaxy
-        #TODO: what radius to take for asymetry ? The asymmetry (x 4.2) and clumpiness (x 4.3) parameters are also measured within the 1:5?rð? ¼ 0:2Þ radius (see CBJ00 for a discussion of the benefits of using this particular value). IN THE RELATIONSHIP BETWEEN STELLAR LIGHT DISTRIBUTIONS OF GALAXIES AND THEIR FORMATION HISTORIES Conselice 2003
-
+        # version without AplPy
+        hdulist = fits.open(f)
+        #print hdulist.info()
+        image = hdulist[0].data
 
         y_center_pix, x_center_pix = fig.world2pixel(RAdeg[ind], Decdeg[ind])
         dist_pix = np.mean([(y_max_pix - y_min_pix)/2., (x_max_pix - x_min_pix)/2.])
@@ -142,15 +155,62 @@ for ind in np.arange(30):
         y_max_pix, x_max_pix = y_center_pix + dist_pix, x_center_pix + dist_pix
 
 
-        # version without AplPy
-        hdulist = fits.open(f)
-        #print hdulist.info()
-        image = hdulist[0].data
+
+
+        ########################
+        # Petrosian radius     #
+        ########################
+
+
+        subimage = image[x_min_pix:x_max_pix, y_min_pix:y_max_pix]
+
+        fig = plt.figure()
+        plt.imshow(subimage, interpolation='none')
+        plt.show()
+        plt.close()
+
+        sub_center_x = x_center_pix - x_min_pix
+        sub_center_y = y_center_pix - y_min_pix
+
+
+        y,x = np.ogrid[-sub_center_x:2*dist_pix-sub_center_x, -sub_center_y:2*dist_pix-sub_center_y]
+
+        radial_luminosity = np.array([])
+        radius = np.arange(dist_pix)
+        for r in radius:
+            circles = x*x + y*y <= r*r
+            """
+            fig = plt.figure()
+            plt.imshow(circles, interpolation='none')
+            plt.show()
+            plt.close()
+            print circles
+            """
+            radial_luminosity = np.append(radial_luminosity, np.sum(circles*subimage)/(np.pi*r*r))
+
+        fig = plt.figure()
+        plt.plot(radius, radial_luminosity)
+        plt.show()
+        plt.close()
+
+
+
+
+        ########################
+        # Asymetry measurement #
+        ########################
+
+        #TODO: delete sky from subimage for asymetry.
+        #TODO: put blank sky closer to galaxy
+        #TODO: what radius to take for asymetry ? The asymmetry (x 4.2) and clumpiness (x 4.3) parameters are also measured within the 1:5?? 0 radius (see CBJ00 for a discussion of the benefits of using this particular value). IN THE RELATIONSHIP BETWEEN STELLAR LIGHT DISTRIBUTIONS OF GALAXIES AND THEIR FORMATION HISTORIES Conselice 2003
+
+
+
+
 
 
         # Will test different centers and take the one
         # where the asymetry is minimal
-
         n_offset_x = 20
         n_offset_y = n_offset_x
 
@@ -186,7 +246,7 @@ for ind in np.arange(30):
         pdf = PdfPages(pdfpagename)
 
         fig = plt.figure()
-        fig.text(.1, .1, subname)
+        fig.text(.1, .7, subname)
 
         plt.subplot(231)
         plt.title("selected region")
@@ -217,7 +277,7 @@ for ind in np.arange(30):
         for region_x in np.arange(n_regions_x):
             for region_y in np.arange(n_regions_y):
                 region = image[region_x:region_x+dist_pix*2, region_y:region_y+dist_pix*2]
-                regions_moment[region_x, region_y] = np.std(region)
+                regions_moment[region_x, region_y] = ndimage.standard_deviation(region)
 
         voidpos = np.where(regions_moment == np.min(regions_moment))
 
@@ -225,16 +285,24 @@ for ind in np.arange(30):
 
         rotvoid = np.rot90(np.rot90(void))
         diffrotvoid = void-rotvoid
-        asymetryvoid = np.sum(np.abs(diffrotvoid)) / np.sum(np.abs(subimage))
+        asymetry_void = np.sum(np.abs(diffrotvoid)) / np.sum(np.abs(subimage))
 
-        asymetry_corrected = asymetry - asymetryvoid
+        asymetry_corrected = asymetry - asymetry_void
         print "asymetry_corrected = ", asymetry_corrected
         print "asymetry = ", asymetry
-        print "asymetryvoid = ", asymetryvoid
+        print "asymetry_void = ", asymetry_void
 
-        fig.text(.1, .07, "asymetry_corrected = "+str(asymetry_corrected))
-        fig.text(.1, .05, "asymetry = "+str(asymetry))
-        fig.text(.1, .03, "asymetryvoid = "+str(asymetryvoid))
+        table_results["ID"][ind] = subname
+        table_results["asymetry object"][ind] = asymetry
+        table_results["asymetry void"][ind] = asymetry_void
+        table_results["asymetry corrected"][ind] = asymetry_corrected
+
+
+
+
+        fig.text(.1, .04, "asymetry_corrected = "+str(asymetry_corrected))
+        fig.text(.1, .02, "asymetry = "+str(asymetry))
+        fig.text(.1, .0, "asymetry_void = "+str(asymetry_void))
 
         plt.subplot(234)
         plt.title("void")
@@ -249,6 +317,10 @@ for ind in np.arange(30):
 
 
         pdfmerger.append(PdfFileReader(pdfpagename, 'rb'))
+
+
+table_results.write('results.html', format='html')
+
 
 pdfmerger.write("results.pdf")
 
