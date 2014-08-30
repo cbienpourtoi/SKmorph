@@ -78,8 +78,8 @@ objclass= origdata.field('Class')
 #
 
 # Just do the first galaxies or all of them :
-#n_galaxies_limit = len(MJD)
-n_galaxies_limit = 30
+n_galaxies_limit = len(MJD)
+#n_galaxies_limit = 30
 
 
 # Makes a table to store results in.
@@ -123,6 +123,13 @@ for ind in np.arange(n_galaxies_limit):
     strcoords = "--coords="+coords.to_string('hmsdms')
     filterstofetch = "r"
 
+    strcoords_for_pymorph = coords.to_string('dms')
+    print strcoords
+    print strcoords_for_pymorph
+    print RAdeg[ind], Decdeg[ind]
+    print z[ind]
+
+
     """
     fetchsdss.main(["", strcoords, filterstofetch, "--output="+subname+"_sdss_"])
 
@@ -140,11 +147,9 @@ for ind in np.arange(n_galaxies_limit):
 
     file = glob.iglob("images/"+subname+"*_"+filter+"_*.fits.gz")
     for f in file:
-
-        print "ici"
         print f
 
-        radius = 0.002
+        radius = 0.003
 
         fig = aplpy.FITSFigure(f)
         fig.recenter(RAdeg[ind], Decdeg[ind], radius=radius/3)
@@ -168,6 +173,38 @@ for ind in np.arange(n_galaxies_limit):
         y_max_pix, x_max_pix = y_center_pix + dist_pix, x_center_pix + dist_pix
 
 
+        ########################
+        # Void regions         #
+        ########################
+
+
+        # Find a void region if it has not been already computed:
+        voidfile_row = (np.where(table_voids['ID'] == int(subname)))[0]
+        print voidfile_row
+        if not len(voidfile_row):
+            # in this case it computes the void and saves its parameters.
+
+            n_regions_x = image.shape[0] - dist_pix * 2
+            n_regions_y = image.shape[1] - dist_pix * 2
+
+            regions_moment = np.zeros((n_regions_x, n_regions_y))
+
+            for region_x in np.arange(n_regions_x):
+                for region_y in np.arange(n_regions_y):
+                    region = image[region_x:region_x+dist_pix*2, region_y:region_y+dist_pix*2]
+                    regions_moment[region_x, region_y] = ndimage.standard_deviation(region)
+
+            voidpos = np.where(regions_moment == np.min(regions_moment))
+
+            void = image[voidpos[0]:voidpos[0]+dist_pix*2, voidpos[1]:voidpos[1]+dist_pix*2]
+
+            table_voids.add_row([subname, voidpos[0], voidpos[0]+dist_pix*2, voidpos[1], voidpos[1]+dist_pix*2])
+            table_voids.write(voidfile, format='ascii.commented_header')
+
+        else:
+            # in this case it just gets the void from the file.
+            void = image[table_voids["Xmin"][voidfile_row]:table_voids["Xmax"][voidfile_row], table_voids["Ymin"][voidfile_row]:table_voids["Ymax"][voidfile_row]]
+
 
 
         ########################
@@ -175,38 +212,65 @@ for ind in np.arange(n_galaxies_limit):
         ########################
 
 
-        subimage = image[x_min_pix:x_max_pix, y_min_pix:y_max_pix]
+        subimage = image[x_min_pix:x_max_pix, y_min_pix:y_max_pix] - np.mean(void)
 
+        print np.mean(void)
+
+        """
         fig = plt.figure()
         plt.imshow(subimage, interpolation='none')
         plt.show()
         plt.close()
+        """
 
         sub_center_x = x_center_pix - x_min_pix
         sub_center_y = y_center_pix - y_min_pix
 
-
         y,x = np.ogrid[-sub_center_x:2*dist_pix-sub_center_x, -sub_center_y:2*dist_pix-sub_center_y]
 
         radial_luminosity = np.array([])
-        radius = np.arange(dist_pix)
+        radial_integrated_luminosity = np.array([])
+        #true_radius = np.array([])
+        stepradius = 0.5
+        radius = np.arange(stepradius, dist_pix, stepradius)
         for r in radius:
-            circles = x*x + y*y <= r*r
-            """
+            disk = x*x + y*y <= r*r
+            circle = (x*x + y*y < r*r*1.25*1.25) & (x*x + y*y >= r*r*0.8*0.8)
+
             fig = plt.figure()
-            plt.imshow(circles, interpolation='none')
+            plt.imshow(circle, interpolation='none')
             plt.show()
             plt.close()
-            print circles
-            """
-            radial_luminosity = np.append(radial_luminosity, np.sum(circles*subimage)/(np.pi*r*r))
 
+            radial_integrated_luminosity = np.append(radial_integrated_luminosity, np.sum(disk*subimage)/np.sum(disk*1))
+            radial_luminosity = np.append(radial_luminosity, np.sum(circle*subimage)/np.sum(circle))
+
+        petrosian_ratio = radial_luminosity / radial_integrated_luminosity
+
+        """
         fig = plt.figure()
-        plt.plot(radius, radial_luminosity)
+        plt.plot(radius, true_radius)
+        plt.plot(np.arange(20), np.arange(20))
         plt.show()
         plt.close()
+        """
 
+        """
+        fig = plt.figure()
+        plt.plot(radius, radial_integrated_luminosity, label="integrated")
+        plt.plot(radius, radial_luminosity, label="dr")
+        plt.legend()
+        plt.show()
+        plt.close()
+        """
 
+        """
+        fig = plt.figure()
+        plt.plot(radius, petrosian_ratio, label="Petrosian ratio")
+        plt.legend()
+        plt.show()
+        plt.close()
+        """
 
 
         ########################
@@ -280,34 +344,7 @@ for ind in np.arange(n_galaxies_limit):
 
 
 
-        # Find a void region if it has not been already computed:
-        voidfile_row = (np.where(table_voids['ID'] == int(subname)))[0]
-        print voidfile_row
-        if not len(voidfile_row):
-            # in this case it computes the void and saves its parameters.
-
-            n_regions_x = image.shape[0] - dist_pix * 2
-            n_regions_y = image.shape[1] - dist_pix * 2
-
-            regions_moment = np.zeros((n_regions_x, n_regions_y))
-
-            for region_x in np.arange(n_regions_x):
-                for region_y in np.arange(n_regions_y):
-                    region = image[region_x:region_x+dist_pix*2, region_y:region_y+dist_pix*2]
-                    regions_moment[region_x, region_y] = ndimage.standard_deviation(region)
-
-            voidpos = np.where(regions_moment == np.min(regions_moment))
-
-            void = image[voidpos[0]:voidpos[0]+dist_pix*2, voidpos[1]:voidpos[1]+dist_pix*2]
-
-            table_voids.add_row([subname, voidpos[0], voidpos[0]+dist_pix*2, voidpos[1], voidpos[1]+dist_pix*2])
-            table_voids.write(voidfile, format='ascii.commented_header')
-
-        else:
-            # in this case it just gets the void from the file.
-            void = image[table_voids["Xmin"][voidfile_row]:table_voids["Xmax"][voidfile_row], table_voids["Ymin"][voidfile_row]:table_voids["Ymax"][voidfile_row]]
-
-
+        # Asymetry on void regions
 
         rotvoid = np.rot90(np.rot90(void))
         diffrotvoid = void-rotvoid
@@ -322,8 +359,6 @@ for ind in np.arange(n_galaxies_limit):
         table_results["asymetry object"][ind] = asymetry
         table_results["asymetry void"][ind] = asymetry_void
         table_results["asymetry corrected"][ind] = asymetry_corrected
-
-
 
 
         fig.text(.1, .04, "asymetry_corrected = "+str(asymetry_corrected))
