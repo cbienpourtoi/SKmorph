@@ -62,8 +62,8 @@ def cutout(filename, xc, yc, xw=25, yw=25, units='pixels', outfile=None,
 
     if head['NAXIS'] > 2:
         raise DimensionError("Too many (%i) dimensions!" % head['NAXIS'])
-    cd1 = head.get('CDELT1') if head.get('CDELT1') else head.get('CD1_2')
-    cd2 = head.get('CDELT2') if head.get('CDELT2') else head.get('CD2_1')
+    cd1 = head.get('CDELT1') if head.get('CDELT1') else max(head.get('CD1_2'), head.get('CD1_1'))
+    cd2 = head.get('CDELT2') if head.get('CDELT2') else max(head.get('CD2_1'), head.get('CD2_2'))
     if cd1 is None or cd2 is None:
         raise Exception("Missing CD or CDELT keywords in header")
     wcs = pywcs.WCS(head)

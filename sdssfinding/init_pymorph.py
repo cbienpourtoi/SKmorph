@@ -76,8 +76,6 @@ for galaxy in galaxy_table:
 galaxy_table.add_column(Column(name='name', data=names))
 galaxy_table.add_column(Column(name='ID', data=IDs), index=0)
 
-print galaxy_table
-
 """
 fig = plt.figure()
 plt.plot(galaxy_table['RA'], galaxy_table['Dec'], 'x')
@@ -85,11 +83,53 @@ plt.show()
 plt.close()
 """
 
+print "Total number of objects: " + str(len(galaxy_table))
 
+limit_Mstar = 9.5
+selected_positions = np.where(galaxy_table['logMstar'] > limit_Mstar)[0]
+print "Number of selected objects: " + str(len(selected_positions))
+selection = np.zeros(len(galaxy_table), np.bool)
+selection[selected_positions] = True
+
+
+"""
+# In case I want to select by sfr:
+limit_sSFR = -8.5
+selection = np.where(galaxy_table['logsSFR'] > limit_sSFR)[0]
+print "Number of selected objects: " + str(len(selection))
+not_selection = np.ones(len(galaxy_table), np.bool)
+not_selection[selection] = False
+"""
+
+fig = plt.figure()
+plt.plot(galaxy_table['logMstar'][selection.__invert__()], galaxy_table['logsSFR'][selection.__invert__()], 'xb')
+plt.plot(galaxy_table['logMstar'][selection], galaxy_table['logsSFR'][selection], 'xr')
+plt.xlabel("log(Mstar)")
+plt.ylabel("log(sSFR)")
+plt.title("Selected objects")
+plt.savefig("Mstar_sSFR.png")
+#plt.show()
+plt.close()
+
+fig = plt.figure()
+plt.plot(galaxy_table['logMstar'][selection.__invert__()], galaxy_table['logSFR'][selection.__invert__()], 'xb')
+plt.plot(galaxy_table['logMstar'][selection], galaxy_table['logSFR'][selection], 'xr')
+plt.xlabel("log(Mstar)")
+plt.ylabel("log(SFR)")
+plt.title("Selected objects")
+plt.savefig("Mstar_SFR.png")
+#plt.show()
+plt.close()
+
+col_selection = Column(data=selection, name="selection")
+galaxy_table.add_column(col_selection)
+
+print galaxy_table
 print galaxy_table.columns
 
 galaxy_table.write("galaxy_table.html")
 galaxy_table.write("galaxy_table.txt", format='ascii.commented_header')
+
 
 
 error_filename = "errors_galaxies.txt"
@@ -102,7 +142,8 @@ for galaxy in galaxy_table:
     error = False
 
     #if galaxy["ID"] == "ID_0120":
-    if True:
+    if galaxy["selection"] == True:
+    #if True:
 
         directory = main_directory + galaxy['ID'] + "/"
         if not os.path.exists(directory):
@@ -124,7 +165,8 @@ for galaxy in galaxy_table:
         large_image_file = directory+galaxy['ID']+'_'+filter+'.fits'
 
         if getfits:
-            if not os.path.exists(directory+galaxy['ID']+'_'+filter+'.fits') or not os.path.exists(stamp_name):
+            #if not os.path.exists(directory+galaxy['ID']+'_'+filter+'.fits') or not os.path.exists(stamp_name):
+            if True:
                 if not os.path.exists(directory+galaxy['ID']+'_'+filter+'.fits'):
                     if len(glob.glob("*"+galaxy['ID']+"*"+filter+"*"+"*fit*gz*")) < 1:
                         fetchsdss.main(["", "--coords="+strcoords, filter, "--output="+galaxy['ID']+'_'])
@@ -137,7 +179,8 @@ for galaxy in galaxy_table:
                         print hdulist[0].header['filter']
                         hdulist.writeto(large_image_file, output_verify='ignore', clobber = True)
 
-                if not os.path.exists(stamp_name):
+                #if not os.path.exists(stamp_name):
+                if True:
                     try:
                         cutout.cutout(large_image_file, galaxy['RA'], galaxy['Dec'], 0.035, 0.035, units='wcs', outfile=stamp_name, coordsys='celestial')
                     except:
@@ -164,15 +207,23 @@ for galaxy in galaxy_table:
             f_example.close()
             f_config.close()
 
+
+            """
+            # Old launcher, when I though I had to run pymorph twice"
             launcher_file = open(launcher_name, "a")
             launcher_file.write("cd "+directory+"\n")
             launcher_file.write("~/Projects/pymorph/pymorph.py\n")
             launcher_file.write("mkdir "+galaxy['ID']+"_phase1\n")
             launcher_file.write("cp -f /home/loic/Projects/pymorph/"+galaxy['ID']+"/*  /home/loic/Projects/pymorph/"+galaxy['ID']+"/"+galaxy['ID']+"_phase1/\n\n")
-
-
             launcher_file.close()
+            """
 
+            launcher_file = open(launcher_name, "a")
+            launcher_file.write("cd "+directory+"\n")
+            launcher_file.write("~/Projects/pymorph/pymorph.py\n")
+            launcher_file.write("mkdir "+galaxy['ID']+"_safe\n")
+            launcher_file.write("cp -f /home/loic/Projects/pymorph/"+galaxy['ID']+"/*  /home/loic/Projects/pymorph/"+galaxy['ID']+"/"+galaxy['ID']+"_safe/\n\n")
+            launcher_file.close()
 
 
 
