@@ -5,8 +5,11 @@
 
 import numpy as np
 import matplotlib.pyplot as plt
+import matplotlib.ticker as mticker
 #from matplotlib.backends.backend_pdf import PdfPages
+from mpl_toolkits.axes_grid1 import make_axes_locatable
 import sys, shutil, glob, os
+from matplotlib import gridspec
 
 from astropy.io import ascii
 from astropy.coordinates import SkyCoord
@@ -25,6 +28,22 @@ from astropy.table import Table, hstack, Column, vstack, join
 
 #from PyPDF2 import PdfFileMerger, PdfFileReader
 #from scipy import ndimage
+
+
+# For matplotlib histograms in percents
+"""
+def to_percent(y, position):
+    # Ignore the passed in position. This has the effect of scaling the default
+    # tick locations.
+    s = str(100 * y)
+
+    # The percent symbol needs escaping in latex
+    if plt.rcParams['text.usetex'] == True:
+        return s + r'$\%$'
+    else:
+        return s + '%'
+"""
+
 
 
 # Where the data output from pymorph is:
@@ -119,6 +138,139 @@ else:
 #selection = np.where(np.abs(large_table['A_12']) < 50.)
 #large_table = large_table[selection]
 
+print large_table.colnames
+
+#############################
+####  Lee13 like plots   ####
+#############################
+
+large_table = large_table[np.where(large_table['C_10'] < 10)]
+large_table = large_table[np.where(large_table['A_12'] < 10)]
+
+
+# C vs A, with C and A on the sides:
+
+fig = plt.figure(figsize=(6, 7))
+gs = gridspec.GridSpec(2, 2, width_ratios=[2, 1], height_ratios=[3, 2])
+fig.subplots_adjust(hspace=0,wspace=0)
+
+ax0 = plt.subplot(gs[0])
+ax0.scatter(large_table['C_10'], large_table['A_12'], s=10, lw=0)
+plt.ylabel('A (Asymetry)')
+plt.xlim([1.9, 3.7])
+plt.ylim([-.2, 0.7])
+plt.setp(ax0.get_xticklabels(), visible=False)
+
+
+ax1 = plt.subplot(gs[1])
+ax1.hist(large_table['A_12'], bins=9, range=[-.2, 0.7], orientation='horizontal')
+#plt.xlabel('A')
+#plt.ylabel('#')
+plt.ylim([-.2, 0.7])
+plt.setp(ax1.get_yticklabels(), visible=False)
+
+ax2 = plt.subplot(gs[2])
+ax2.hist(large_table['C_10'], bins=18, range=[1.9, 3.7])
+plt.xlabel('C (Concentration)')
+#plt.ylabel('#')
+plt.xlim([1.9, 3.7])
+
+#plt.show()
+
+plt.savefig("Lee_AandC_Fig9.png")
+
+plt.close()
+
+
+#large_table = large_table[np.where(large_table['G_16'] < 10)]
+
+# hist: G
+fig = plt.figure(figsize=[6,4])
+plt.hist(large_table['G_16'], bins=6, range=[0.1, 0.7])
+plt.xlabel('G (Gini)')
+plt.ylabel('#')
+plt.xlim([0.1, 0.7])
+#plt.show()
+plt.savefig("Lee_G_Fig5.png")
+plt.close()
+
+
+# hist: M20
+fig = plt.figure(figsize=[6,4])
+plt.hist(large_table['M_17'], bins=8, range=[-2.2, -.6])
+plt.xlabel('M20')
+plt.ylabel('#')
+plt.xlim([-2.2, -.6])
+#plt.show()
+plt.savefig("Lee_M_Fig5.png")
+plt.close()
+
+
+
+# hist: A
+fig = plt.figure(figsize=[6,4])
+plt.hist(large_table['A_12'], bins=9, range=[-.2, 0.7])
+plt.xlabel('A')
+plt.ylabel('#')
+#plt.show()
+plt.savefig("Lee_A.png")
+plt.close()
+
+
+# C vs A
+fig = plt.figure(figsize=[6,8])
+plt.scatter(large_table['C_10'], large_table['A_12'], s=10, lw=0)
+plt.xlabel('C (Concentration)')
+plt.ylabel('A (Asymetry)')
+plt.xlim([1.9, 3.7])
+plt.ylim([-.2, 0.7])
+plt.savefig("Lee_CvsA.png")
+#plt.show()
+plt.close()
+
+
+# G vs M20
+fig = plt.figure(figsize=[6,6])
+plt.scatter(large_table['M_17'], large_table['G_16'], s=10, lw=0)
+plt.ylabel('G (Gini)')
+plt.xlabel('M20')
+plt.xlim([-2.3, -.6])
+plt.ylim([.2, .7])
+#plt.show()
+plt.savefig("Lee_GvsM20_Fig6.png")
+plt.close()
+
+
+
+# G vs Re
+fig = plt.figure(figsize=[6,5])
+plt.scatter(np.log10(large_table['re_kpc_29']), large_table['G_16'], s=10, lw=0)
+plt.ylabel('G (Gini)')
+plt.xlabel('Re [kpc]')
+plt.xlim([-1.6, 1.])
+plt.ylim([.2, .8])
+plt.savefig("Lee_RevsG.png")
+plt.show()
+plt.close()
+
+
+# M20 vs Re
+fig = plt.figure(figsize=[6,8])
+plt.scatter(np.log10(large_table['re_kpc_29']), large_table['M_17'], s=10, lw=0)
+plt.ylabel('M20')
+plt.xlabel('Re [kpc]')
+plt.xlim([-.6, 1.])
+plt.ylim([-2.1, -.9])
+plt.savefig("Lee_RevsM.png")
+plt.show()
+plt.close()
+
+
+
+#############################
+#### Conselice like plot ####
+#############################
+
 
 colormap = np.array(['b', 'g', 'r'])
 
@@ -170,6 +322,6 @@ plt.xlim([5.1,1.8])
 plt.ylim([1.,-0.1])
 
 plt.savefig("Conselice.png")
-plt.show()
+#plt.show()
 plt.close()
 
