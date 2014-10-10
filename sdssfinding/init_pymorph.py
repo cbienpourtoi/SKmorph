@@ -162,6 +162,7 @@ for galaxy in galaxy_table:
         filter = "g"
 
         stamp_name = directory+galaxy['ID']+'_'+filter+'_small.fits'
+        mini_stamp_name = directory+galaxy['ID']+'_'+filter+'_mini.fits'
         large_image_file = directory+galaxy['ID']+'_'+filter+'.fits'
 
         if getfits:
@@ -186,6 +187,14 @@ for galaxy in galaxy_table:
                     except:
                         error_file = open(error_filename, "a")
                         error_file.write(stamp_name+"\n")
+                        error_file.close()
+                        error = True
+
+                    try:
+                        cutout.cutout(large_image_file, galaxy['RA'], galaxy['Dec'], 0.005, 0.005, units='wcs', outfile=mini_stamp_name, coordsys='celestial')
+                    except:
+                        error_file = open(error_filename, "a")
+                        error_file.write(mini_stamp_name+"\n")
                         error_file.close()
                         error = True
 
